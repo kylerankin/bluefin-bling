@@ -592,6 +592,10 @@ const scenarios = {
                 ctx.stubs.Main.sessionMode.emit('updated');
             } else if (options.interrupt === 'destroy') ctx.indicator.destroy();
         }
+        // A lock must not abort a change already started: release the held write
+        // so it finishes; the lock-tolerant API ignores the lock. A destroy still
+        // aborts, so release that only after the operation resolves.
+        if (options.interrupt === 'lock') ctx.release(gate);
         await operation;
         if (options.interrupt) ctx.release(gate);
         if (!ctx.indicator._destroyed) await ctx.indicator._refreshSharing();

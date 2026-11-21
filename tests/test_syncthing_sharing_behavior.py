@@ -208,18 +208,28 @@ class SyncthingSharingTests(unittest.TestCase):
         self.assertIn("could not be confirmed", result["after"]["notifications"][0]["body"])
         self.assertIn("Sharing — Stop sharing", result["after"]["sharingMenu"][0]["actions"][0])
 
-    def test_lock_or_disable_during_write_prevents_followup_mutations(self):
-        for interrupt in ("lock", "destroy"):
-            with self.subTest(interrupt=interrupt):
-                options = fixtures()
-                options["interrupt"] = interrupt
-                result = run("sharingAction", options)
-                self.assertEqual(len(writes(result["after"])), 1)
-                self.assertEqual(result["after"]["notifications"], [])
-                self.assertEqual(result["destroyed"]["timerCount"], 0)
-                self.assertEqual(result["destroyed"]["cancellationHandlers"], 0)
-                self.assertEqual(result["destroyed"]["sessionHandlers"], 0)
-                self.assertEqual(result["destroyed"]["menuHandlers"], 0)
+    def test_disable_during_write_prevents_followup_mutations(self):
+        options = fixtures()
+        options["interrupt"] = "destroy"
+        result = run("sharingAction", options)
+        self.assertEqual(len(writes(result["after"])), 1)
+        self.assertEqual(result["after"]["notifications"], [])
+        self.assertEqual(result["destroyed"]["timerCount"], 0)
+        self.assertEqual(result["destroyed"]["cancellationHandlers"], 0)
+        self.assertEqual(result["destroyed"]["sessionHandlers"], 0)
+        self.assertEqual(result["destroyed"]["menuHandlers"], 0)
+
+    def test_lock_between_folder_and_device_writes_still_ignores_peer(self):
+        # Lock fires during the first (folder) PATCH; the lock-tolerant write must
+        # still complete the second (device) PATCH so the peer is ignored.
+        options = fixtures()
+        options["peerIndex"] = 1
+        options["interrupt"] = "lock"
+        result = run("sharingAction", options)
+        self.assertEqual(len(writes(result["after"])), 2)
+        device_c = next(d for d in result["after"]["devices"] if d["deviceID"] == "C")
+        self.assertIn("documents", [f["id"] for f in device_c.get("ignoredFolders", [])])
+        self.assertEqual(result["after"]["notifications"], [])
 
     def test_revalidates_folder_before_applying_stale_menu_choice(self):
         options = fixtures()
