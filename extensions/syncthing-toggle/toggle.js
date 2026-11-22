@@ -1019,10 +1019,21 @@ export var ServiceIndicator = GObject.registerClass(
 					item.menu.addMenuItem(new PopupMenu.PopupMenuItem(
 						_('Turn on a standard folder in Sharing Settings.'), { reactive: false }))
 				for (const folder of peer.shares) {
-					const action = folder.shared ? _('Stop sharing') :
-						(folder.state === 'offered' ? _('Accept') : _('Share'))
-					item.menu.addAction(`${labels[folder.folderId]} — ${states[folder.state]} — ${action}`,
-						() => this._changeSharing(folder.folderId, peer.deviceId, !folder.shared))
+					const prefix = `${labels[folder.folderId]} — ${states[folder.state]}`
+					if (folder.shared) {
+						item.menu.addAction(`${prefix} — ${_('Stop sharing')}`,
+							() => this._changeSharing(folder.folderId, peer.deviceId, false))
+					} else if (folder.state === 'offered') {
+						// Accept shares the folder with the peer; Decline records the same
+						// durable ignore as Stop sharing without adding the peer to it.
+						item.menu.addAction(`${prefix} — ${_('Accept')}`,
+							() => this._changeSharing(folder.folderId, peer.deviceId, true))
+						item.menu.addAction(`${prefix} — ${_('Decline')}`,
+							() => this._changeSharing(folder.folderId, peer.deviceId, false))
+					} else {
+						item.menu.addAction(`${prefix} — ${_('Share')}`,
+							() => this._changeSharing(folder.folderId, peer.deviceId, true))
+					}
 				}
 			}
 		}

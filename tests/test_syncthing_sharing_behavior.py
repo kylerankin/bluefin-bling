@@ -111,6 +111,19 @@ class SyncthingSharingTests(unittest.TestCase):
         self.assertEqual(len(result["after"]["configured"]), 3)
         self.assertIn({"deviceID": "B"}, result["after"]["configured"][0]["devices"])
 
+    def test_offered_folder_decline_records_ignore_and_keeps_peer_unshared(self):
+        options = fixtures()
+        options["pendingFolders"] = {"documents": {"offeredBy": {"B": {}}}}
+        result = run("sharingAction", {**options, "folderIndex": 1})
+        after = result["after"]
+        # Accept stays first; Decline is the second action on an offered row.
+        self.assertIn("Accept", result["before"]["sharingMenu"][0]["actions"][0])
+        self.assertIn("Decline", result["before"]["sharingMenu"][0]["actions"][1])
+        self.assertNotIn({"deviceID": "B"}, after["configured"][0]["devices"])
+        self.assertEqual({item["id"] for item in after["devices"][1]["ignoredFolders"]}, {"other", "documents"})
+        self.assertEqual([request["path"] for request in writes(after)],
+                         ["config/folders/documents", "config/devices/B"])
+
     def test_stop_preserves_files_pairing_other_shares_and_suppresses_standing_offer(self):
         options = fixtures()
         options["existingFolders"][0]["devices"].append({"deviceID": "B"})
